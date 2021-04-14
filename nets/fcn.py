@@ -17,17 +17,23 @@ class Fcn(nn.Module):
 
     def __init__(self, siglen, n_targets):
         super(Fcn, self).__init__()
+        """
+        Args:
+            siglen (int): number of timesteps per signal
+            n_targets (int): number of target classes
+        """
 
-        # gpu or cpu
+        # use a gpu if available
         if torch.cuda.is_available():
             dev = "cuda:0"
         else:
             dev = "cpu"
 
-        print(f'device: {dev}')
+        print(f'Running on device: {dev}')
 
         self.dev = torch.device(dev)
 
+        # initialize
         self.siglen = siglen
         self.n_targets = n_targets
 
@@ -69,7 +75,15 @@ class Fcn(nn.Module):
         return x
 
     def get_cam(self, signal):
-
+        """ Calculates the CAM map for one signal
+        
+        Args:
+            signal (torch.Tensor): Signal to calculate the CAM for.
+            
+        Returns:
+            A tuple with the CAM map as numpy array and the predicted class
+            of the input signal.
+        """
         # activate evaluation mode
         self.eval()
 

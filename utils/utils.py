@@ -6,26 +6,29 @@ from matplotlib.collections import LineCollection
 
 import torch
 import torch.nn.functional as F
-from torch.utils.data import Dataset
 
 from sklearn.metrics import accuracy_score, balanced_accuracy_score
 
 """
-some useful stuff to train the models
+some useful stuff to train the models and create visualizations
 """
 
 
-class UCRDataset(Dataset):
+class UCRDataset(torch.utils.data.Dataset):
     """
-    dataset-object for training
+    dataset-object
     """
 
     def __init__(self, path):
+        """
+        Args:
+            path (str): relative path to the dataset
+        """
 
         # read in data set as pd.DataFrame
         data = pd.read_csv(path, header=None)
 
-        # gpu or cpu
+        # use a gpu if available
         if torch.cuda.is_available():
             dev = "cuda:0"
         else:
@@ -50,7 +53,7 @@ class UCRDataset(Dataset):
         targets_shift = targets_raw.replace(uni, repl)
         self.targets = targets_shift.to_numpy().reshape(-1, 1)
 
-        # z-norm signal
+        # z-normalize the signals
         signals_np = data.iloc[:, 1:].to_numpy()
         signals_norm = np.apply_along_axis(self._z_norm, 1, signals_np)
 
@@ -67,6 +70,9 @@ class UCRDataset(Dataset):
         return {'inputs': inps, 'outputs': outs}
 
     def info(self):
+        """ 
+        print information about the dataset to the console
+        """
         print(f'Signal length: {self.siglen} points')
         print(f'Size of dataset: {self.__len__()} entries')
         print('')
@@ -83,7 +89,12 @@ class UCRTorchTrainer:
     """
 
     def __init__(self, model, criterion, optimizer):
-
+        """
+        Args:
+            model (nn.Module): model architecture to use
+            criterion (torch.nn.modules.loss): loss function
+            optimizer (torch.optim): optimizer
+        """
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
@@ -96,25 +107,47 @@ class UCRTorchTrainer:
               save_as='',
               save_log_as=''
               ):
-
+        """ Train the model.
+        
+        Args:
+            traindata_loader (torch.utils.data.DataLoader):
+                DataLoader for training data.
+            n_epochs (int): Number of epochs to train the model for.
+            testdata_loader (torch.utils.data.DataLoader):
+                DataLoader for test data (if available).
+            early_stopping (int): If the test-accuracy for a consecutive number
+                of epochs is not improving, the training is stopped.
+            save_as (str): Name the model should be saved to.
+                If an empty string is passed, no model will be saved.
+            save_log_as (str): Name the log should be saved to.
+                If an empty string is passed, no log will be saved.
+        Returns:
+            None.
+            
+        """
+        # set model in train mode
         self.model.train()
-        self.epochlosses = []
-        self.train_accuracies = []
-        self.lrs = []
+        
+        # initialize the statistics
+        self.epochlosses = [] # train loss
+        self.train_accuracies = [] # train accuracy
+        self.lrs = [] # learning rate
 
         if testdata_loader is not None:
-            self.test_accuracies = []
-            self.test_bal_accuracies = []
+            self.test_accuracies = [] # test accuracy
+            self.test_bal_accuracies = [] # balanced test accuracy
 
+        # train for a specified number of epochs
         for epoch in range(n_epochs):
 
-            batchlosses = []
+            batchlosses = [] # loss per batch
 
             print(f'Epoch: {epoch}', end='')
 
             # used for train accuracy
             correct, total = 0, 0
 
+            # calculate batch wise
             for i, batch in enumerate(traindata_loader, 0):
 
                 x_train, y_train = batch['inputs'], batch['outputs']
@@ -199,7 +232,16 @@ class UCRTorchTrainer:
                 self.save_log(save_log_as)
 
     def evaluate(self, testdata_loader):
+        """ Predict for test data.
 
+        Args:
+            testdata_loader (torch.utils.data.DataLoader):
+                DataLoader for test data.
+
+        Returns:
+            np.array with predicted labels
+
+        """
         # store prediction after each batch
         predictions = []
 
@@ -223,20 +265,30 @@ class UCRTorchTrainer:
         return np.array(predictions)
     
     def save_log(self, name):
-        
+        """ Save logs to file.
+
+        Args:
+            name (str): Name to save the log to.
+
+        """
+        # collect data for log
         log = pd.DataFrame()
         log['train_loss'] = self.epochlosses
         log['train_accuracies'] = self.train_accuracies
         log['test_accuracies'] = self.test_accuracies
         log['test_bal_accuracies'] = self.test_bal_accuracies
         
+        # add learninf rate only if available
         if len(self.lrs) != 0:
             log['LR'] = self.lrs
         
+        # save log
         log.to_csv(name)
 
     def plot_loss(self):
-
+        """
+        Displays a plot for the training loss per epoch.
+        """
         fig, ax = plt.subplots()
         ax.plot(self.epochlosses, label='train loss')
         ax.set(
@@ -248,7 +300,9 @@ class UCRTorchTrainer:
         plt.show()
 
     def plot_acc(self):
-
+        """
+        Displays a plot for the training and test accuracy per epoch.
+        """
         fig, ax = plt.subplots()
         ax.plot(self.test_accuracies, label='test accuracy')
         ax.plot(self.train_accuracies, label='train accuracy')
@@ -261,7 +315,20 @@ class UCRTorchTrainer:
         plt.show()
 
     def show_cam(self, data_loader, idx, show=True):
+        """ Creates a CAM plot for a specified signal.
 
+        Args:
+            data_loader (torch.utils.data.DataLoader): DataLoader with signals.
+            idx (int): Index of the signal to create the plot for.
+            show (bool): If True the plot is shown.
+
+        Returns:
+            cam_norm (np.array): CAM values for the specified signal.
+            signalnp (np.array): Specified signal.
+            label (int): True label.
+            pred (int): Predicted label.
+
+        """
         # get signal and true label
         item = data_loader.dataset.__getitem__(idx)
         signal = item['inputs']
@@ -295,7 +362,22 @@ class UCRTorchTrainer:
         return cam_norm, signalnp, label, pred
     
     def show_attention(self, data_loader, idx, block=0, head=0, show=True):
-        
+        """ Visualize attention for a specified signal
+
+        Args:
+            data_loader (torch.utils.data.DataLoader): DataLoader with signals.
+            idx (int): Index of the signal to create the plot for.
+            block (int): Which transformer block to visualize.
+            head (int): Which transformer head to visualize.
+            show (bool): If True the plot is shown.
+
+        Returns:
+            sum_in_norm (np.array): Summed attention on specified signal.
+            signalnp (np.array): Specified signal.
+            label (int): True label.
+            pred (int): Predicted label.
+
+        """
         # get signal and true label
         item = data_loader.dataset.__getitem__(idx)
         signal = item['inputs']
@@ -333,24 +415,39 @@ class UCRTorchTrainer:
             fig.colorbar(sc, ax=axs, shrink=0.75)
             fig.suptitle(f'Attention - index: {idx}, true label: {label}, predicted label: {pred}')
             plt.show()
-
-    
         
         return sum_in_norm, signalnp, label, pred
 
     def show_gradients(self, data_loader, idx, show=True):
+        """ Backpropagates the gradients of one signal through to the input.
+        These gradients can also highlight areas of importance.
 
+        Args:
+            data_loader (torch.utils.data.DataLoader): DataLoader with signals.
+            idx (int): Index of the signal to create the plot for.
+            show (bool): If True the plot is shown.
+
+        Returns:
+            dydx (np.array): Gradients on input signal.
+            signalnp (np.array): Specified signal.
+            label (int): True label.
+            pred (int): Predicted label.
+
+        """
         # get signal and true label
         item = data_loader.dataset.__getitem__(idx)
         signal = torch.autograd.Variable(item['inputs'], requires_grad=True)
         label = item['outputs'].numpy()[0]
 
+        # get the log probabilities of the specified signal
         self.model.eval()
         logprob = self.model.forward(signal.view(1, 1, -1))
         self.model.train()
         
+        # get label prediction
         pred = np.argmax(logprob.detach().squeeze().numpy())
         
+        # get gradient on input signal 
         maxprob = logprob.max()
         maxprob.backward()
         dydx = signal.grad[0].numpy()
@@ -358,7 +455,7 @@ class UCRTorchTrainer:
         # signal as np array
         signalnp = signal.detach().squeeze().numpy()
 
-        # plot clored cam on signal
+        # plot clored map on signal
         if show:
             t = np.arange(0, len(signalnp))
 
@@ -373,7 +470,16 @@ class UCRTorchTrainer:
         return dydx, signalnp, label, pred
 
 
-def importance_per_class(model_trainer, data_loader, mode='CAM'):
+def importance_per_class(model_trainer, data_loader, mode='CAM', only_correct=False):
+    """ Create a plot with multiple CAM or attention maps, ordered by label.
+
+    Args:
+        model_trainer (utils.utils.UCRTorchTrainer): Trainer object.
+        data_loader (torch.utils.data.DataLoader): DataLoader with signals.
+        mode (str): Define whether 'CAM' or 'attention' is used.
+        only_correct (bool): If True only correct predicted signals get shown.
+
+    """
 
     # initiate a subplot fore every target class in set
     n_classes = data_loader.dataset.n_target_classes
@@ -390,7 +496,7 @@ def importance_per_class(model_trainer, data_loader, mode='CAM'):
         elif mode == 'CAM':
             cam_norm, y, label, pred = model_trainer.show_cam(data_loader, idx, show=False)
 
-        if True: #label == pred:
+        if (label == pred) or not only_correct:
 
             points = np.array([x, y]).T.reshape(-1, 1, 2)
             segments = np.concatenate([points[:-1], points[1:]], axis=1)

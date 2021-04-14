@@ -12,13 +12,14 @@ the original code (using Tensorflow / Keras) can be found at:
 
 class RESBlock(nn.Module):
     """
-    single block of a resnet
+    single block of a resnet - only used as part of a complete 
+    resnet architecture
     """
 
     def __init__(self, n_filters, in_channels):
         super(RESBlock, self).__init__()
 
-        # gpu or cpu
+        # use a gpu if available
         if torch.cuda.is_available():
             dev = "cuda:0"
         else:
@@ -68,23 +69,27 @@ class RESNET(nn.Module):
 
     def __init__(self, siglen, n_targets):
         super(RESNET, self).__init__()
-
-        # gpu or cpu
+        """
+        Args:
+            siglen (int): number of timesteps per signal
+            n_targets (int): number of target classes
+        """
+        # use a gpu if available
         if torch.cuda.is_available():
             dev = "cuda:0"
         else:
             dev = "cpu"
 
-        print(f'device: {dev}')
+        print(f'Running on device: {dev}')
 
         self.dev = torch.device(dev)
 
-        self.n_feature_maps = 64
-
+        # initialize
         self.siglen = siglen
         self.n_targets = n_targets
 
         # stack resnet blocks
+        self.n_feature_maps = 64
         self.block1 = RESBlock(self.n_feature_maps, 1)
         self.block2 = RESBlock(self.n_feature_maps*2, self.n_feature_maps)
         self.block3 = RESBlock(self.n_feature_maps*2, self.n_feature_maps*2)
@@ -112,7 +117,15 @@ class RESNET(nn.Module):
         return x
 
     def get_cam(self, signal):
-
+        """ Calculates the CAM map for one signal
+        
+        Args:
+            signal (torch.Tensor): Signal to calculate the CAM for.
+            
+        Returns:
+            A tuple with the CAM map as numpy array and the predicted class
+            of the input signal.
+        """
         # activate evaluation mode
         self.eval()
 

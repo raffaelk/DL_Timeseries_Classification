@@ -19,16 +19,17 @@ the code for the positional embeddings has been copied from:
 
 class SelfAttention(nn.Module):
     """
-    A SelfAttention model.
-    Args:
-        d: The embedding dimension.
-        heads: The number of attention heads.
+    A SelfAttention module.
     """
 
-    def __init__(self, d: int, heads: int = 8):
+    def __init__(self, d, heads=8):
         super().__init__()
-
-        # gpu or cpu
+        """
+        Args:
+            d (int): The embedding dimension.
+            heads (int): The number of attention heads.
+        """
+        # use a gpu if available
         if torch.cuda.is_available():
             dev = "cuda:0"
         else:
@@ -36,6 +37,7 @@ class SelfAttention(nn.Module):
 
         self.dev = torch.device(dev)
 
+        # initialize
         self.k, self.h = d, heads
 
         self.Wq = nn.Linear(d, d * heads, bias=False).to(self.dev)
@@ -46,10 +48,10 @@ class SelfAttention(nn.Module):
         # a single k-dimensional vector
         self.unifyheads = nn.Linear(heads * d, d).to(self.dev)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x):
         """
         Args:
-            x: The input embedding of shape [b, l, d].
+            x (torch.Tensor): The input embedding of shape [b, l, d].
 
         Returns:
             Self attention tensor of shape [b, l, d].
@@ -87,22 +89,25 @@ class SelfAttention(nn.Module):
 class TransformerBlock(nn.Module):
     """
     A Transformer block consisting of self attention and ff-layer.
-    Args:
-        d (int): The embedding dimension.
-        heads (int): The number of attention heads.
-        n_mlp (int): The number of mlp 'blocks'.
     """
 
-    def __init__(self, d: int, heads: int = 8, n_mlp: int = 4, layer_order: str = 'postLN'):
+    def __init__(self, d, heads=8, n_mlp=4, layer_order='postLN'):
         super().__init__()
-
-        # gpu or cpu
+        """
+        Args:
+            d (int): The embedding dimension.
+            heads (int): The number of attention heads.
+            n_mlp (int): The number of mlp 'blocks'.
+            layer_order (str): order of layer normalization
+                either 'postLN' or 'preLN'
+        """
+        # use a gpu if available
         if torch.cuda.is_available():
             dev = "cuda:0"
         else:
             dev = "cpu"
 
-        print(f'device: {dev}')
+        print(f'Running on device: {dev}')
 
         self.dev = torch.device(dev)
         
@@ -147,10 +152,10 @@ class TransformerBlock(nn.Module):
             
 
     def get_attmatt(self):
+        """ 
+        Access to the attention matrix
+        """
         return self.attention.attmat
-
-
-# %% architecture of the transformer model
 
 
 class UnivarTransformer(nn.Module):
@@ -159,10 +164,20 @@ class UnivarTransformer(nn.Module):
     This implementation only works for univariate time series.
     """
 
-    def __init__(self, siglen, n_targets, heads=8, depth=3, emb_dim=50, layer_order = 'postLN'):
+    def __init__(self, siglen, n_targets, heads=8, depth=3, emb_dim=50, layer_order='postLN'):
         super(UnivarTransformer, self).__init__()
+        """
+        Args:
+            siglen (int): number of timesteps per signal
+            n_targets (int): number of target classes
+            heads (int): The number of attention heads.
+            depth (int): The number of transformer blocks.
+            demb_dim (int): The embedding dimension.
+            layer_order (str): order of layer normalization
+                either 'postLN' or 'preLN'
+        """
 
-        # gpu or cpu
+        # use a gpu if available
         if torch.cuda.is_available():
             dev = "cuda:0"
         else:
@@ -230,8 +245,11 @@ class UnivarTransformer(nn.Module):
         return x
 
     def comp_attention(self, x):
-        """
-        x: signal of shape [1, 1, l]
+        """ Computes the attention maps of each head of the transformer
+        for a single signal.
+        
+        Args:
+            x (torch.Tensor): signal of shape [1, 1, l]
 
         Returns:
             list of attention matrices of the shape [1, h, l, l]

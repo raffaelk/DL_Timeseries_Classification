@@ -5,7 +5,6 @@ This script will train and save a model.
 
 
 import torch
-from torch.utils.data import DataLoader
 
 from utils.utils import UCRDataset, UCRTorchTrainer
 from utils.scheduled_optimizer import ScheduledOptim
@@ -34,7 +33,7 @@ DATA_PATH = './UCR_archive/UCR_TS_Archive_2015'
 
 # define some training related hyper-parameters
 BATCH_SIZE = 16
-EPOCHS = 100
+EPOCHS = 5
 LEARNING_RATE = 0.001
 
 # large value will turn off early stopping
@@ -73,13 +72,13 @@ elif MODEL == 'transformer-preLN':
     optimizer = torch.optim.Adam(net.parameters(), lr=LEARNING_RATE)
 
 # create data loaders
-traindata_loader = DataLoader(
+traindata_loader = torch.utils.data.DataLoader(
     dataset=train_set,
     batch_size=BATCH_SIZE,
     shuffle=True
     )
 
-testdata_loader = DataLoader(
+testdata_loader = torch.utils.data.DataLoader(
     dataset=test_set,
     batch_size=BATCH_SIZE,
     shuffle=False
