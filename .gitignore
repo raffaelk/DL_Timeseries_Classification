@@ -1,4 +1,7 @@
 logs/
 models/
-__pycache__/
 UCR_archive
+
+__pycache__/
+.ipynb_checkpoints/
+

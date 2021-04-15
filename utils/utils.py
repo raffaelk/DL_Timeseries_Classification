@@ -75,7 +75,7 @@ class UCRDataset(torch.utils.data.Dataset):
         """
         print(f'Signal length: {self.siglen} points')
         print(f'Size of dataset: {self.__len__()} entries')
-        print('')
+        print('Label count:')
         print(self.val_ctn)
     
     def _z_norm(self, signal):
