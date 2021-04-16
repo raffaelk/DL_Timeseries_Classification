@@ -21,6 +21,8 @@ The FCN and the ResNet architecture have already been successfully used for such
 
 All three architectures allow to create visualizations, which highlight important features in the signals. For the FCN and the ResNet so called class activation maps (CAM) have been used (as also described by [Fawaz et. al.](https://github.com/hfawaz/dl-4-tsc)). With the transformer architecture the attention values have been visualized, as it is sometimes done in natural language processing.
 
+The notebook [walkthrough.ipynb](walkthrough.ipynb) (or [open with nbviewer](https://nbviewer.jupyter.org/github/raffaelk/DL_Timeseries_Classification/blob/main/walkthrough.ipynb)) will apply the thre networks to a sample dataset.
+
 ## Dataset
 
 The models used in this project should be applicable to a wide variety of time series. Therefore the publicly accessible UCR time series archive is a good test case.
