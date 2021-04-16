@@ -4,6 +4,12 @@ The code in this repo was part of a group project for the Deep Learning class of
 
 Parts of the code which are based on or copied from other people's work are marked as such in comments.
 
+## Main Technologies Used
+
+- Language: Python
+- Visualization: Matplotlib
+- Analysis and Modelling: PyTorch, NumPy
+
 ## Summary
 
 The goal of this project is to use deep learning to classify time series (e.g. sensor signals) into predefined categories, a task quite common in almost every business field. Here this is achieved by using three different neural network architectures:
